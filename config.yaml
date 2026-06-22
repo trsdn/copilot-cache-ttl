@@ -1,0 +1,70 @@
+# Configuration for the Copilot cache-token-lifetime measurement harness.
+
+# Number of times to repeat each model's measurement. >1 reports mean/stdev/min/max.
+# Recommended for the 'auto' model, whose routed model can vary per run.
+repeats: 1
+
+# Candidate models to test. Models not available to your account are auto-skipped.
+# Add "auto" to test Copilot's automatic model selection (use repeats >= 3).
+models:
+  - claude-opus-4.8
+  - claude-sonnet-4.5
+  - claude-haiku-4.5
+  - gpt-5.4
+  - gpt-5.4-mini
+  - gemini-3.5-flash
+
+# Delay schedule (seconds) used as the initial staircase before binary search.
+# The harness seeds the cache, then probes at each delay to find where the cache dies.
+delay_schedule_seconds:
+  - 30
+  - 60
+  - 120
+  - 300
+  - 600
+  - 1200
+  - 1800
+  - 3600
+
+# Binary-search settings for pinning the TTL boundary between the last "alive"
+# and first "expired" probe.
+binary_search:
+  enabled: true
+  # Stop narrowing once the alive/expired bracket is within this many seconds.
+  resolution_seconds: 30
+  # Repeat the boundary probe this many times to confirm (reduces flakiness).
+  confirmations: 2
+
+# Prompt sent on every call. Kept tiny; the cached prefix is dominated by the
+# system prompt + tool definitions + the padding block below.
+prompt: "Reply with the single word: ok"
+
+# Optional padding appended to the prompt. DISABLED by default: the CLI system
+# prompt + tool definitions already provide ~27k cacheable tokens (well above any
+# provider cache minimum), and large argv prompts hit the Windows command-line
+# length limit. Only enable with a small repeat if you specifically need a larger
+# unique prefix.
+padding:
+  enabled: false
+  line: "CACHE-PROBE-PADDING-LINE do-not-change keep-stable 0123456789 "
+  repeat: 50
+
+runner:
+  # Per-call timeout for a copilot subprocess (seconds).
+  timeout_seconds: 180
+  # Stabilization flags applied to every invocation.
+  disable_builtin_mcps: true
+  no_custom_instructions: true
+  no_color: true
+  # CLI experimental-features toggle during the test.
+  #   true  -> pass --experimental on every call
+  #   false -> pass --no-experimental on every call
+  #   null  -> don't pass either; use the persisted ~/.copilot/settings.json value.
+  # The effective state (and the account's server-assigned experiment flights) is
+  # always recorded in results/run_context.json under "copilot_cli_config".
+  experimental: null
+
+output:
+  results_dir: results
+  csv_name: results.csv
+  charts: true

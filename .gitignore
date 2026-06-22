@@ -1,0 +1,15 @@
+results/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local-only / internal artifacts — never commit
+*.local
+*.local.*
+local/
+.env
+.env.*
+*.internal
+*.internal.*
+results/snapshots/
