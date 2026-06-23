@@ -2,6 +2,13 @@
 
 This report summarizes the public, GA-only measurements from the Copilot CLI cache-TTL harness. It intentionally excludes non-public model and account details.
 
+Published data snapshot: 2026-06-23.
+
+Source files:
+
+- `data/public-model-summary.csv`
+- `data/public-probe-matrix.csv`
+
 ## Executive Summary
 
 The latest public report uses the cleaned result files in `data/` rather than the local raw `results/` directory. The measured cache lifetimes vary substantially by model family:
@@ -15,6 +22,8 @@ The latest public report uses the cleaned result files in `data/` rather than th
 - `auto` is routed and should not be assigned one TTL value.
 
 These are practical, account- and context-specific measurements. They should be treated as reproducible lower-bound observations for this harness, not as universal service guarantees.
+
+The harness measures observed prompt-cache reuse TTL through Copilot CLI telemetry. It does not measure session lifetime, model memory, token limits, or an official product SLA.
 
 ## Model Summary
 
@@ -73,6 +82,7 @@ These are practical, account- and context-specific measurements. They should be 
 - Some boundaries are noisy. When a boundary is mixed, this report keeps the bracket and states that uncertainty explicitly.
 - Routed `auto` results are not assigned a single TTL because the serving model can vary by request.
 - The public report avoids local account configuration and non-public model details. Review generated artifacts before publishing them.
+- The public tables are derived from reviewed `data/` files. Local `results/` files are useful for audit and reproduction, but they are not the sole source for this report.
 
 ## Artifacts
 

@@ -2,6 +2,8 @@
 
 This repository measures how long a Copilot CLI prompt-cache entry remains reusable before a follow-up request has to create cache again. The harness sends a stable hidden prompt, waits for controlled delay intervals, then reads the Copilot CLI OpenTelemetry counters to classify each probe as a cache hit or miss.
 
+This measures observed prompt-cache reuse TTL only. It does not measure session lifetime, model memory, token limits, or an official product SLA.
+
 ## Current Public Results
 
 The current public, GA-only report is generated from the cleaned CSV files under `data/`:
@@ -30,6 +32,12 @@ Headline TTL windows:
 
 Full details are in [RESULTS.md](RESULTS.md), including the probe matrix, measurement method, caveats, and artifact list.
 
+## Public Vs Local Artifacts
+
+The public report is built from reviewed files in `data/`. The local `results/` directory is ignored by Git because it can contain raw telemetry and run-context details that should be reviewed before publication.
+
+Use [PUBLISHING.md](PUBLISHING.md) before updating public results. The short rule is: publish from cleaned `data/` files, not directly from raw `results/` files.
+
 ## How It Works
 
 1. Build a stable request prefix from the Copilot CLI system prompt, tool definitions, and a tiny fixed user prompt.
@@ -44,7 +52,8 @@ Full details are in [RESULTS.md](RESULTS.md), including the probe matrix, measur
 | Path | Purpose |
 | --- | --- |
 | `src/` | Runner, telemetry parsing, experiment logic, and report helpers. |
-| `config.yaml` | Delay schedule, model list, runner settings, and output configuration. |
+| `config.yaml` | Delay schedule, model list, runner settings, and output configuration for future local runs. |
+| `PUBLISHING.md` | Checklist for moving local run output into public data. |
 | `data/README.md` | Public-data contract for the cleaned CSV files. |
 | `data/public-model-summary.csv` | Cleaned public model-level result summary. |
 | `data/public-probe-matrix.csv` | Cleaned public probe matrix. |
@@ -57,3 +66,4 @@ Full details are in [RESULTS.md](RESULTS.md), including the probe matrix, measur
 - Run in a quiet CLI/account context. Other activity that shares the same stabilized prefix can make a cache entry appear warm before the run starts.
 - Treat the TTL windows as account-, version-, and context-specific measurements, not product guarantees.
 - Review generated context files before publishing. Public documentation and git history must only reference generally available model names and must not include non-public details.
+- `config.yaml` is a run recipe, not proof that those models are part of the current public snapshot. The current published snapshot is the reviewed data under `data/`.

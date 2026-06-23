@@ -1,5 +1,8 @@
 # Configuration for the Copilot cache-token-lifetime measurement harness.
 
+# This file configures future local runs. The reviewed public result snapshot
+# lives under data/ and is documented in RESULTS.md.
+
 # Number of times to repeat each model's measurement. >1 reports mean/stdev/min/max.
 # Recommended for the 'auto' model, whose routed model can vary per run.
 repeats: 1
