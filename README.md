@@ -1,55 +1,59 @@
-# Copilot CLI cache TTL measurement harness
+# Copilot CLI Cache TTL Measurement Harness
 
-This repository measures how long a Copilot CLI prompt-cache entry remains reusable before the service treats it as stale. Instead of relying on undocumented product promises, it uses the Copilot CLI's own OpenTelemetry export to observe whether a follow-up request is served from cache or forces a new cache-creation event.
+This repository measures how long a Copilot CLI prompt-cache entry remains reusable before a follow-up request has to create cache again. The harness sends a stable hidden prompt, waits for controlled delay intervals, then reads the Copilot CLI OpenTelemetry counters to classify each probe as a cache hit or miss.
 
-## Public results
+## Current Public Results
 
-The full public report is here: [RESULTS.md](RESULTS.md).
+The current public, GA-only report is generated from the cleaned CSV files under `data/`:
 
-## Current measured results
+- `data/public-model-summary.csv`
+- `data/public-probe-matrix.csv`
 
-The current public run contains probe points for three GA Claude Opus variants. The raw outcomes are:
+Headline TTL windows:
 
-| Model | 30s | 60s | 120s | 210s | 255s | 277.5s | 300s | Public TTL window |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| claude-opus-4.5 | hit | hit | hit | hit | hit | miss | miss | 255s-277.5s |
-| claude-opus-4.6 | hit | hit | hit | hit | hit | hit | miss | 277.5s-300s |
-| claude-opus-4.7 | hit | hit | hit | hit | hit | miss | miss | 255s-277.5s |
+| Model | Observed TTL window | Public interpretation |
+| --- | ---: | --- |
+| claude-haiku-4.5 | 225s-255s | about 4.0 min; mixed boundary at 255s |
+| claude-opus-4.5 | 255s-277.5s | about 4.4 min |
+| claude-opus-4.6 | 277.5s-300s | about 4.8 min |
+| claude-opus-4.7 | 255s-277.5s | about 4.4 min; prefix changed mid-run |
+| claude-opus-4.8 | 277.5s-300s | about 4.8 min |
+| claude-sonnet-4.5 | 277.5s-300s | about 4.8 min |
+| claude-sonnet-4.6 | 255s-277.5s | about 4.4 min |
+| gemini-3.5-flash | roughly 1200s-1500s | about 24.8 min; noisy boundary |
+| gpt-5.4 | <30s | no stable cache at first probe |
+| gpt-5.4-mini | 918.75s-937.5s | about 15.5 min |
+| gpt-5.5 | 1031.25s-1050s | about 17.3 min |
+| gpt-5-mini | >=1800s | still cached at the 30-minute ceiling |
+| gpt-5.3-codex | >=1800s | still cached at the 30-minute ceiling |
+| auto | routed | no single TTL; routed model varies |
 
-The public headline is therefore:
+Full details are in [RESULTS.md](RESULTS.md), including the probe matrix, measurement method, caveats, and artifact list.
 
-- claude-opus-4.5: about 4.25-4.63 minutes
-- claude-opus-4.6: about 4.63-5.00 minutes
-- claude-opus-4.7: about 4.25-4.63 minutes
+## How It Works
 
-These values are best interpreted as lower-bound estimates for a specific account/session context. They are not universal guarantees and should be re-run if the prompt prefix, CLI version, model, or feature flighting changes.
+1. Build a stable request prefix from the Copilot CLI system prompt, tool definitions, and a tiny fixed user prompt.
+2. Send a hidden seed request to populate the prompt cache for that prefix.
+3. Wait for a configured delay such as 30s, 60s, 120s, 300s, or a refined midpoint.
+4. Send a hidden probe request with the same prefix.
+5. `cache_read_input_tokens` indicates a cache hit; `cache_creation_input_tokens` indicates a miss or refresh.
+6. Use an initial staircase plus binary-search refinement to bracket the hit/miss boundary.
 
-## How the approach works
+## Repository Layout
 
-The measurement is intentionally simple and reproducible:
+| Path | Purpose |
+| --- | --- |
+| `src/` | Runner, telemetry parsing, experiment logic, and report helpers. |
+| `config.yaml` | Delay schedule, model list, runner settings, and output configuration. |
+| `data/README.md` | Public-data contract for the cleaned CSV files. |
+| `data/public-model-summary.csv` | Cleaned public model-level result summary. |
+| `data/public-probe-matrix.csv` | Cleaned public probe matrix. |
+| `results/` | Local generated run artifacts and raw telemetry outputs. |
+| `assets/` | Public chart exports for cache survival and probe cost. |
+| `RESULTS.md` | Public report prepared from the cleaned data. |
 
-1. Pick a stable prompt prefix and tool-definition payload so the cache key is comparable across probes.
-2. Send a hidden seed request to populate the cache entry for that prefix.
-3. Wait for a chosen delay interval such as 30s, 60s, 120s, 300s, or longer.
-4. Send a second hidden probe request with the same prefix and inspect the OTel span attributes.
-5. If the request shows `cache_read_input_tokens`, it hit the cache. If it shows `cache_creation_input_tokens`, the cache entry was not reused.
-6. Use a staircase plus binary-search refinement to narrow the TTL window until the hit/miss boundary is clear.
+## Reproducibility Notes
 
-The harness also records the serving model, CLI version, cost signals, latency, and the exact prefix hash so later runs can be compared under similar conditions.
-
-## What is in this repo
-
-- `src/` contains the runner, parser, and reporting code.
-- `results/` contains generated CSV/JSON artifacts and plots.
-- `assets/` contains the exported charts.
-- `config.yaml` contains the model, delay, and repetition settings used for the runs.
-
-## Reproducibility notes
-
-- The harness runs hidden, non-interactive Copilot CLI requests.
-- It records the prompt prefix hash and the OTel cache counters for each probe.
-- The output is stored under `results/` and can be re-processed with the scripts in `src/`.
-
-## Public policy
-
-Public documentation and git history should only mention generally available (GA) model names. Internal, preview, or otherwise non-public model names must not be published here.
+- Run in a quiet CLI/account context. Other activity that shares the same stabilized prefix can make a cache entry appear warm before the run starts.
+- Treat the TTL windows as account-, version-, and context-specific measurements, not product guarantees.
+- Review generated context files before publishing. Public documentation and git history must only reference generally available model names and must not include non-public details.
